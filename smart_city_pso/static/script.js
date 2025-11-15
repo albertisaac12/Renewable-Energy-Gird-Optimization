@@ -1,32 +1,29 @@
-// static/script.js
-// Ultra-aggressive realtime dispatch client (ASCII only)
+// Real-time UI client for PSO-optimized dispatch
 
 let livePolling = true;
 let realtimePollTimer = null;
-let latestRealtimeOpt = null; // {alloc: [s,w,h], fitness, ts}
+let latestRealtimeOpt = null;
 
 const POLL_INTERVAL = 1000;
-const REALTIME_POLL_INTERVAL = 300; // 300 ms aggressive
-const MAX_RENEWABLE_CAPACITY = 100;
+const REALTIME_INTERVAL = 300;
 
 function log(msg) {
     const box = document.getElementById("logBox");
-    const ts = new Date().toISOString().replace("T"," ").split(".")[0];
+    const ts = new Date().toISOString().replace("T", " ").split(".")[0];
     box.textContent += "[" + ts + "] " + msg + "\n";
     box.scrollTop = box.scrollHeight;
 }
 
-// UI setters
-function updateSourceLive(name, live) {
-    document.getElementById(name + "Live").innerText = live.toFixed(2) + " MW";
+function updateSourceLive(name, val) {
+    document.getElementById(name + "Live").innerText = val.toFixed(2) + " MW";
 }
-function updateSourceApplied(name, applied, mode) {
-    document.getElementById(name + "Applied").innerText = applied.toFixed(2) + " MW";
+
+function updateSourceApplied(name, val, mode) {
+    document.getElementById(name + "Applied").innerText = val.toFixed(2) + " MW";
     document.getElementById(name + "Mode").innerText = "Mode: " + mode;
 }
 
 function gridStatus(demand, supply) {
-    if (demand > MAX_RENEWABLE_CAPACITY) return "Underpowered (Expected)";
     const diff = Math.abs(supply - demand);
     const ratio = diff / demand;
     if (ratio <= 0.05) return "Stable";
@@ -34,111 +31,107 @@ function gridStatus(demand, supply) {
     return "Critical";
 }
 
-// Poll live simulation state
+function updatePhase(t) {
+    const el = document.getElementById("simPhase");
+
+    if (t < 30) {
+        el.innerText = "Simulation Phase: Stabilization Period (Demand ~95 MW)";
+        el.className = "phaseBadge phaseBlue";
+    } else {
+        el.innerText = "Simulation Phase: Dynamic Demand (PSO Following Fluctuations)";
+        el.className = "phaseBadge phaseGreen";
+    }
+}
+
 function pollState() {
     if (!livePolling) return;
+
     fetch("/api/state")
         .then(r => r.json())
         .then(data => {
             const t = data.t_idx;
             const demand = Number(data.demand);
-            const liveS = Number(data.solar_mean);
-            const liveW = Number(data.wind_mean);
-            const liveH = Number(data.hydro_mean);
 
-            updateSourceLive("solar", liveS);
-            updateSourceLive("wind", liveW);
-            updateSourceLive("hydro", liveH);
+            const sLive = Number(data.solar_mean);
+            const wLive = Number(data.wind_mean);
+            const hLive = Number(data.hydro_mean);
 
-            // Determine applied allocation
-            const useOpt = document.getElementById("applyOptimized").checked;
-            let appliedS = liveS, appliedW = liveW, appliedH = liveH;
+            updateSourceLive("solar", sLive);
+            updateSourceLive("wind", wLive);
+            updateSourceLive("hydro", hLive);
+
+            updatePhase(t);
+            document.getElementById("timeIdx").innerText = "Time: " + t;
+            document.getElementById("demand").innerText = "Demand: " + demand.toFixed(2) + " MW";
+
+            const optOn = document.getElementById("applyOptimized").checked;
+            let aS = sLive, aW = wLive, aH = hLive;
             let mode = "Live";
 
-            if (useOpt && latestRealtimeOpt && latestRealtimeOpt.alloc) {
-                // Use latest realtime optimized allocation
-                appliedS = Number(latestRealtimeOpt.alloc[0]);
-                appliedW = Number(latestRealtimeOpt.alloc[1]);
-                appliedH = Number(latestRealtimeOpt.alloc[2]);
+            if (optOn && latestRealtimeOpt && latestRealtimeOpt.alloc) {
+                aS = Number(latestRealtimeOpt.alloc[0]);
+                aW = Number(latestRealtimeOpt.alloc[1]);
+                aH = Number(latestRealtimeOpt.alloc[2]);
                 mode = "Realtime-Optimized";
-                document.getElementById("realtimeFitness").innerText = "Realtime fitness: " + Number(latestRealtimeOpt.fitness).toFixed(3);
+
+                document.getElementById("realtimeFitness").innerText =
+                    "Realtime fitness: " + latestRealtimeOpt.fitness.toFixed(3);
             } else {
                 document.getElementById("realtimeFitness").innerText = "Realtime fitness: -";
             }
 
-            const total = appliedS + appliedW + appliedH;
+            const total = aS + aW + aH;
 
-            document.getElementById("timeIdx").innerText = "Time: " + t;
-            document.getElementById("demand").innerText = "Demand: " + demand.toFixed(2) + " MW";
+            updateSourceApplied("solar", aS, mode);
+            updateSourceApplied("wind", aW, mode);
+            updateSourceApplied("hydro", aH, mode);
+
             document.getElementById("supply").innerText = "Applied Supply: " + total.toFixed(2) + " MW";
+            document.getElementById("gridStatus").innerText = "Grid Status: " + gridStatus(demand, total);
 
-            updateSourceApplied("solar", appliedS, mode);
-            updateSourceApplied("wind", appliedW, mode);
-            updateSourceApplied("hydro", appliedH, mode);
-
-            const st = gridStatus(demand, total);
-            document.getElementById("gridStatus").innerText = "Grid Status: " + st;
-
-            log("t=" + t + " Demand=" + demand.toFixed(2) + " Applied=" + total.toFixed(2) + " Status=" + st);
+            log("t=" + t + " Demand=" + demand.toFixed(2) + " Supply=" + total.toFixed(2));
         })
         .finally(() => {
             if (livePolling) setTimeout(pollState, POLL_INTERVAL);
         });
 }
 
-// Realtime optimize call
 function callRealtimeOptimize() {
     fetch("/api/optimize_now", { method: "POST" })
         .then(r => r.json())
         .then(json => {
-            if (json && json.alloc) {
-                latestRealtimeOpt = {
-                    alloc: json.alloc,
-                    fitness: json.fitness,
-                    ts: Date.now() / 1000
-                };
-                // Do not flood logs - log only occasional messages
-                log("Realtime alloc received, fitness: " + Number(json.fitness).toFixed(3));
-            }
-        })
-        .catch(err => {
-            log("Realtime optimize error: " + String(err));
+            if (!json.alloc) return;
+            latestRealtimeOpt = json;
         });
 }
 
 function startRealtimePolling() {
-    if (realtimePollTimer) return;
-    callRealtimeOptimize();
-    realtimePollTimer = setInterval(callRealtimeOptimize, REALTIME_POLL_INTERVAL);
+    if (!realtimePollTimer) {
+        callRealtimeOptimize();
+        realtimePollTimer = setInterval(callRealtimeOptimize, REALTIME_INTERVAL);
+    }
 }
 
 function stopRealtimePolling() {
-    if (!realtimePollTimer) return;
-    clearInterval(realtimePollTimer);
-    realtimePollTimer = null;
+    if (realtimePollTimer) {
+        clearInterval(realtimePollTimer);
+        realtimePollTimer = null;
+    }
 }
 
-// Checkbox toggle
 document.getElementById("applyOptimized").onchange = function () {
-    const checked = document.getElementById("applyOptimized").checked;
-    if (checked) {
-        // enable realtime optimize polling
-        startRealtimePolling();
-        log("Realtime optimized dispatch enabled");
-    } else {
+    if (this.checked) startRealtimePolling();
+    else {
         stopRealtimePolling();
         latestRealtimeOpt = null;
-        document.getElementById("realtimeFitness").innerText = "Realtime fitness: -";
-        log("Realtime optimized dispatch disabled");
     }
 };
 
-// Pause/resume live
 document.getElementById("pauseLive").onclick = function () {
     livePolling = false;
-    stopRealtimePolling();
     log("Live polling paused");
 };
+
 document.getElementById("resumeLive").onclick = function () {
     if (!livePolling) {
         livePolling = true;
@@ -147,29 +140,21 @@ document.getElementById("resumeLive").onclick = function () {
     }
 };
 
-// Restart
 document.getElementById("restartSim").onclick = function () {
     fetch("/api/restart", { method: "POST" })
-        .then(r => r.json())
-        .then(json => {
-            log("Simulation restarted");
+        .then(() => {
             latestRealtimeOpt = null;
             stopRealtimePolling();
             document.getElementById("applyOptimized").checked = false;
-            document.getElementById("realtimeFitness").innerText = "Realtime fitness: -";
             document.getElementById("logBox").textContent = "";
-            updateSourceApplied("solar", 0, "Live");
-            updateSourceApplied("wind", 0, "Live");
-            updateSourceApplied("hydro", 0, "Live");
-            livePolling = true;
+            document.getElementById("realtimeFitness").innerText = "Realtime fitness: -";
             pollState();
+            log("Simulation restarted");
         });
 };
 
-// Enable checkbox after initial UI ready and start polling
 window.onload = function () {
-    // enable optimized checkbox for user
     document.getElementById("applyOptimized").disabled = false;
     pollState();
-    log("UI ready - live polling started");
+    log("UI loaded - starting simulation");
 };

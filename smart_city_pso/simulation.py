@@ -3,7 +3,13 @@ import numpy as np
 
 class SmartCitySimulation:
     """
-    Simulates renewable availability and scaled demand between 50 and 100 MW.
+    Smart City simulation for 144 timesteps (10 min each).
+    Provides renewable availability + demand patterns.
+    Modified for:
+        - Higher renewable capacity (no underpowered states)
+        - Reduced randomness (cleaner demo)
+        - Stable demand for first 30 timesteps
+        - Dynamic demand afterwards
     """
 
     def __init__(self, seed=42, houses=150, buildings=20, evs=30):
@@ -13,99 +19,85 @@ class SmartCitySimulation:
         self.buildings = buildings
         self.evs = evs
         self.t = 0
-        self.T = 144
+        self.T = 144    # 24 hours (10 min per step)
 
-        # Nominal generation capacities (MW)
-        self.solar_nom = 40.0
-        self.wind_nom = 35.0
-        self.hydro_nom = 25.0
+        # Increased renewable capacity (100% renewable + stable demo)
+        self.solar_nom = 60.0
+        self.wind_nom  = 55.0
+        self.hydro_nom = 35.0
 
         rng = np.random.RandomState(seed)
 
-        # Cloud cover profile
-        self.cloud = np.ones(self.T)
-        cloud_centers = rng.choice(self.T, size=3, replace=False)
-        for c in cloud_centers:
-            radius = rng.randint(6, 30)
-            profile = np.linspace(0.5, 1.0, 2*radius+1)
-            s = max(0, c-radius)
-            e = min(self.T, c+radius+1)
-            seg = profile[(s-(c-radius)):(e-(c-radius))]
-            self.cloud[s:e] *= seg
+        # -----------------------------
+        # Smooth cloud cover (small randomness)
+        # -----------------------------
+        base_cloud = 0.85 + 0.10*np.sin(2*np.pi*np.arange(self.T)/self.T)
+        noise = rng.normal(0, 0.05, self.T)
+        self.cloud = np.clip(base_cloud + noise, 0.65, 1.0)
 
-        # Wind factor
-        self.wind_factor = rng.normal(1.0, 0.15, self.T)
-        storm_centers = rng.choice(self.T, size=2, replace=False)
-        for c in storm_centers:
-            radius = rng.randint(4, 20)
-            profile = np.linspace(0.7, 1.5, 2*radius+1)
-            s = max(0, c-radius)
-            e = min(self.T, c+radius+1)
-            seg = profile[(s-(c-radius)):(e-(c-radius))]
-            self.wind_factor[s:e] *= seg
-        self.wind_factor = np.clip(self.wind_factor, 0.2, 1.5)
+        # -----------------------------
+        # Smooth wind factor
+        # -----------------------------
+        base_wind = 1.1 + 0.25*np.sin(2*np.pi*(np.arange(self.T)/self.T + 0.2))
+        noise = rng.normal(0, 0.08, self.T)
+        self.wind_factor = np.clip(base_wind + noise, 0.5, 1.5)
 
-        # Hydro
-        self.hydro_flow = (
-            0.9 + 
-            0.05*np.sin(2*np.pi*np.arange(self.T)/self.T + 0.2) +
-            rng.normal(0, 0.02, self.T)
-        )
-        self.hydro_flow = np.clip(self.hydro_flow, 0.6, 1.0)
+        # -----------------------------
+        # Hydro flow stable & smooth
+        # -----------------------------
+        base_flow = 0.9 + 0.05*np.sin(2*np.pi*(np.arange(self.T)/self.T + 0.1))
+        noise = rng.normal(0, 0.01, self.T)
+        self.hydro_flow = np.clip(base_flow + noise, 0.75, 1.0)
 
         self.rng = rng
 
     def step(self):
         i = self.t % self.T
 
-        # House demand
-        hour = i / self.T
-        house_factor = 0.8 + 0.6 * np.sin(2*np.pi*(hour - 0.1))
-        house_val = 0.45 * self.houses * house_factor
+        # -----------------------------
+        # Demand pattern
+        # -----------------------------
 
-        # Building demand
-        building_factor = 1.0 + 0.7 * np.sin(2*np.pi*(hour + 0.15))
-        building_val = 0.6 * self.buildings * building_factor
+        # For first 30 timesteps keep demand stable near 95 MW
+        # So that PSO can clearly show optimization convergence
+        if i < 30:
+            demand = 95.0 + self.rng.normal(0, 0.5)
 
-        # EV demand
-        ev_active = self.rng.uniform(0.15, 0.6)
-        ev_val = ev_active * self.evs * 1.2
+        else:
+            # After stability demo, vary demand smoothly (sin wave)
+            base = 93.0 + 4.0*np.sin(2*np.pi*(i/self.T - 0.1))
+            noise = self.rng.normal(0, 0.8)
+            demand = base + noise
 
-        # ---------------------------
-        # Final demand 50 - 100 MW
-        # ---------------------------
-        raw = house_val + building_val + ev_val
-        norm = raw / (0.45*self.houses + 0.6*self.buildings + 0.3*self.evs)
-        day_curve = 0.5 + 0.5*np.sin(2*np.pi*(i/self.T) - np.pi/2)
+        # Clamp final demand
+        demand = float(np.clip(demand, 90.0, 100.0))
 
-        demand = (
-            55 + 
-            30*day_curve +
-            10*norm +
-            self.rng.normal(0, 2.0)
-        )
-        demand = float(max(50, min(demand, 100)))
-
-        # Renewables
+        # -----------------------------
+        # Renewable availability
+        # -----------------------------
         solar_mean = self.solar_nom * 0.9 * self.cloud[i]
-        wind_mean = self.wind_nom * self.wind_factor[i]
-        hydro_mean = min(self.hydro_nom * self.hydro_flow[i], self.hydro_nom)
+        wind_mean  = self.wind_nom  * self.wind_factor[i]
+        hydro_mean = self.hydro_nom * self.hydro_flow[i]
 
-        snap = {
-            "t_idx": i,
-            "demand": demand,
+        snapshot = {
+            "t_idx": int(i),
+            "demand": float(demand),
             "solar_mean": float(solar_mean),
             "wind_mean": float(wind_mean),
             "hydro_mean": float(hydro_mean),
+            "cloud": float(self.cloud[i]),
+            "wind_factor": float(self.wind_factor[i]),
+            "hydro_flow": float(self.hydro_flow[i]),
         }
 
         self.t += 1
-        return snap
+        return snapshot
 
     def snapshot_series(self):
+        """Return a non-advancing 144-step series (used only for offline tools)."""
         t_save = self.t
-        out = []
+        series = []
         for _ in range(self.T):
-            out.append(self.step())
+            series.append(self.step())
         self.t = t_save
-        return out
+        return series

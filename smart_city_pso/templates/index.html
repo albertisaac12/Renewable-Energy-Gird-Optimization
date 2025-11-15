@@ -2,17 +2,19 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Smart Grid - Realtime Optimized Dispatch</title>
+    <title>Smart City Grid - PSO Optimized Renewable Dispatch</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
+
 <body>
 
 <header>
-    <h1>Smart City Renewable Grid - Realtime Optimized Dispatch</h1>
-    <p class="subtitle">When 'Use Optimized Dispatch' is enabled the system runs an ultra-fast optimizer every 0.3 s and applies allocations immediately.</p>
+    <h1>Smart City Renewable Grid - Real-Time PSO Dispatch</h1>
+    <p class="subtitle">Phase-based demonstration: Stabilization (0–30) then Dynamic Load Tracking</p>
 </header>
 
 <div id="controlsRow">
+
     <div class="controlGroup">
         <label>
             <input type="checkbox" id="applyOptimized" disabled>
@@ -28,27 +30,31 @@
     <div class="controlGroup">
         <button id="restartSim">Restart Simulation</button>
     </div>
+
 </div>
 
 <div id="capacityRow">
     <div class="capBox">
         <div class="capTitle">Renewable Capacity Limits</div>
-        <p>Solar max: <strong>40 MW</strong></p>
-        <p>Wind max: <strong>35 MW</strong></p>
-        <p>Hydro max: <strong>25 MW</strong></p>
-        <p class="capNote">Total renewable capacity: <strong>100 MW</strong></p>
+        <p>Solar max: <strong>60 MW</strong></p>
+        <p>Wind max: <strong>55 MW</strong></p>
+        <p>Hydro max: <strong>35 MW</strong></p>
+        <p class="capNote">Total possible renewable: <strong>150 MW</strong></p>
     </div>
 </div>
 
 <main id="mainGrid">
+
+    <!-- Solar -->
     <section class="sourceSection">
         <h2 class="sourceTitle">Solar</h2>
         <div class="threeCol">
             <div class="colBox liveBox">
                 <div class="colTitle">LIVE</div>
                 <div class="colValue" id="solarLive">- MW</div>
-                <div class="colNote">Current availability</div>
+                <div class="colNote">Availability</div>
             </div>
+
             <div class="colBox appliedBox">
                 <div class="colTitle">APPLIED</div>
                 <div class="colValue" id="solarApplied">- MW</div>
@@ -57,14 +63,16 @@
         </div>
     </section>
 
+    <!-- Wind -->
     <section class="sourceSection">
         <h2 class="sourceTitle">Wind</h2>
         <div class="threeCol">
             <div class="colBox liveBox">
                 <div class="colTitle">LIVE</div>
                 <div class="colValue" id="windLive">- MW</div>
-                <div class="colNote">Current availability</div>
+                <div class="colNote">Availability</div>
             </div>
+
             <div class="colBox appliedBox">
                 <div class="colTitle">APPLIED</div>
                 <div class="colValue" id="windApplied">- MW</div>
@@ -73,14 +81,16 @@
         </div>
     </section>
 
+    <!-- Hydro -->
     <section class="sourceSection">
         <h2 class="sourceTitle">Hydro</h2>
         <div class="threeCol">
             <div class="colBox liveBox">
                 <div class="colTitle">LIVE</div>
                 <div class="colValue" id="hydroLive">- MW</div>
-                <div class="colNote">Current availability</div>
+                <div class="colNote">Availability</div>
             </div>
+
             <div class="colBox appliedBox">
                 <div class="colTitle">APPLIED</div>
                 <div class="colValue" id="hydroApplied">- MW</div>
@@ -88,11 +98,17 @@
             </div>
         </div>
     </section>
+
 </main>
 
-<aside id="rightPanel">
+<!-- NEW: Metrics + Log moved BELOW -->
+<div id="belowPanel">
+
     <div class="metrics">
         <h3>Grid Metrics</h3>
+
+        <p id="simPhase" class="phaseBadge">Simulation Phase: -</p>
+
         <p id="timeIdx">Time: -</p>
         <p id="demand">Demand: - MW</p>
         <p id="supply">Applied Supply: - MW</p>
@@ -104,8 +120,10 @@
         <h3>Event Log</h3>
         <pre id="logBox"></pre>
     </div>
-</aside>
+
+</div>
 
 <script src="/static/script.js"></script>
+
 </body>
 </html>

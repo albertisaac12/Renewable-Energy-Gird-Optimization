@@ -1,136 +1,150 @@
 body {
+    background: #f3f6fa;
     margin: 0;
-    font-family: "Segoe UI", Arial, sans-serif;
-    background: #f6fbff;
-    color: #122;
+    font-family: Arial, sans-serif;
+    color: #222;
 }
 
 header {
+    background: #1d4e89;
+    padding: 20px;
+    color: white;
     text-align: center;
-    padding: 18px 8px;
 }
 
 .subtitle {
-    margin-top: 4px;
-    color: #445;
-    font-size: 0.95em;
+    font-size: 14px;
+    opacity: 0.9;
 }
 
 #controlsRow {
     display: flex;
-    flex-wrap: wrap;
-    gap: 14px;
     justify-content: center;
-    padding: 10px;
+    gap: 25px;
+    padding: 15px;
 }
 
 .controlGroup {
-    display: flex;
-    gap: 10px;
-    align-items: center;
+    background: #ffffff;
+    border: 1px solid #cfd5e2;
+    padding: 10px 20px;
+    border-radius: 6px;
 }
-
-.badge {
-    padding: 6px 10px;
-    border-radius: 8px;
-    font-weight: 700;
-}
-
-.badge.neutral { background: #e4f0ff; color: #1e57d1; }
-.badge.running { background: #fff3d6; color: #a67500; }
-.badge.ok { background: #dbffed; color: #067a2e; }
-
-.small { font-size: 0.9em; }
-.muted { color: #666; }
 
 #capacityRow {
-    display: flex;
-    justify-content: center;
-    padding: 10px 20px;
+    text-align: center;
+    padding: 10px;
 }
 
 .capBox {
-    width: 900px;
-    background: white;
-    padding: 12px 16px;
+    display: inline-block;
+    background: #ffffff;
+    border: 1px solid #ccd8e4;
+    padding: 15px 25px;
     border-radius: 8px;
-    box-shadow: 0 6px 18px rgba(0,0,0,0.04);
 }
 
-.capTitle { font-weight: 800; }
-.capNote { margin-top: 8px; font-weight: 700; }
+.capTitle {
+    font-size: 16px;
+    font-weight: bold;
+}
 
 #mainGrid {
-    width: 900px;
-    margin: 16px auto;
+    display: flex;
+    justify-content: space-around;
+    padding: 20px;
 }
 
 .sourceSection {
-    background: white;
-    margin: 12px 0;
-    padding: 14px;
-    border-radius: 8px;
-    box-shadow: 0 6px 18px rgba(0,0,0,0.04);
+    width: 28%;
 }
 
 .sourceTitle {
-    margin: 0 0 8px 0;
-    font-size: 20px;
-    color: #1b2a44;
+    text-align: center;
+    margin-bottom: 8px;
 }
 
 .threeCol {
     display: flex;
-    gap: 12px;
+    justify-content: space-between;
 }
 
 .colBox {
-    flex: 1;
-    padding: 12px;
-    border-radius: 8px;
-    background: #fbfdff;
+    width: 48%;
+    padding: 14px;
+    background: #ffffff;
+    border: 1px solid #ccd4df;
+    border-radius: 6px;
+    text-align: center;
 }
 
-.liveBox { border-left: 6px solid #ffb84d; }
-.optBox { border-left: 6px solid #6fe89a; }
-.appliedBox { border-left: 6px solid #66a7ff; }
-
 .colTitle {
-    font-weight: 800;
-    color: #30415a;
+    font-weight: bold;
     margin-bottom: 8px;
 }
 
 .colValue {
-    font-size: 22px;
-    font-weight: 800;
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 6px;
 }
 
-#rightPanel {
-    width: 900px;
-    margin: 0 auto 40px auto;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+.liveBox {
+    background: #e9f3ff;
 }
 
-.metrics, .controls {
-    background: white;
-    padding: 12px;
-    border-radius: 8px;
-    box-shadow: 0 6px 18px rgba(0,0,0,0.04);
+.appliedBox {
+    background: #e8ffe8;
 }
 
+/* NEW BOTTOM PANEL */
+#belowPanel {
+    width: 90%;
+    margin: 0 auto;
+    margin-top: 25px;
+}
+
+/* GRID METRICS BOX */
+.metrics {
+    background: #ffffff;
+    border: 1px solid #cbd2df;
+    padding: 15px;
+    border-radius: 6px;
+    margin-bottom: 25px;
+}
+
+.phaseBadge {
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-weight: bold;
+    margin-bottom: 10px;
+    display: inline-block;
+}
+
+.phaseBlue {
+    background-color: #d4e8ff;
+    color: #0450a0;
+}
+
+.phaseGreen {
+    background-color: #d8ffe4;
+    color: #046c1a;
+}
+
+/* EVENT LOG BOX */
 #logPanel {
-    background: #041219;
-    color: #9ef79e;
-    padding: 12px;
-    border-radius: 8px;
+    background: #ffffff;
+    border: 1px solid #cbd2df;
+    padding: 10px;
+    border-radius: 6px;
+    margin-bottom: 40px;
 }
 
 #logBox {
-    height: 220px;
-    overflow: auto;
-    font-family: Consolas, monospace;
-    font-size: 13px;
+    background: #f7f9fc;
+    border: 1px solid #e1e4ea;
+    height: 300px;
+    padding: 10px;
+    font-size: 12px;
+    overflow-y: scroll;
 }

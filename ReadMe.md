@@ -1,29 +1,30 @@
+
 # Renewable Energy Allocation (PSO-based)
 
-This repository contains a small simulation and optimizer for allocating renewable generation (solar, wind, hydro)
-to meet predicted electricity demand over a 24-hour horizon (10-minute steps). The optimizer uses a simple
-Particle Swarm Optimization (PSO) implementation to find allocations that balance supply, stability, switching
-costs, uncertainty, and capacity constraints.
+This repository contains a simulation and optimizer that allocates renewable generation (solar, wind, hydro)
+to meet predicted electricity demand over a 24-hour horizon (10-minute steps). A Particle Swarm Optimization
+(PSO) algorithm is used to produce per-timestep allocations while penalizing imbalance, excessive switching,
+uncertainty-driven reserve shortfalls, and capacity violations.
 
 ## Key Features
 
-- Simulates realistic, time-varying: demand, cloud events (solar), wind events, and hydro flow.
-- Causal demand prediction using a moving average predictor.
-- PSO optimizer with configurable hyperparameters to optimize allocation per timestep.
-- Heuristic final adjustment to favor stable hydro dispatch for shortfalls.
-- Produces plots (stacked allocation, fitness convergence, supply vs predicted demand) and a summary table.
+- Simulates time-varying demand, cloud events affecting solar, stochastic wind events, and hydro flow.
+- Causal moving-average demand predictor for short-term forecasts.
+- PSO-based optimizer with tunable hyperparameters.
+- Heuristic post-processing to use hydro flexibility to reduce shortfalls.
+- Saves summary plots as PNG files and prints a small allocation table and fitness summary.
 
 ## Files
 
-- `renewable_energy.py` — Main script. Contains environment simulation, predictor, fitness function, PSO, and plotting.
+- `renewable_energy.py` — Main script: environment simulation, predictor, fitness function, PSO, plotting/saving.
 - `ReadMe.md` — This file.
 
 ## Requirements
 
-- Python 3.8+ (script developed with Python 3.10 in mind)
+- Python 3.8+ (developed/tested with Python 3.10)
 - Required packages: `numpy`, `pandas`, `matplotlib`
 
-If you have the provided virtual environment (`reg` folder), you can activate it in PowerShell:
+If you want to use the provided virtual environment (`reg` folder) in PowerShell:
 
 ```powershell
 .\reg\Scripts\Activate.ps1
@@ -40,79 +41,68 @@ pip install numpy pandas matplotlib
 
 ## Quick Run
 
-Run the main script from the repository root:
+From the repository root run:
 
 ```powershell
 python renewable_energy.py
 ```
 
-When executed the script will:
+What the script does:
 
-- Simulate the environment for 24 hours with 10-minute timesteps (default `T = 144`).
-- Predict demand using a causal moving average.
-- Run PSO to find an allocation for each timestep.
-- Show three interactive plots (allocation stack, fitness convergence, supply vs predicted demand).
-- Print a small allocation table (first 10 rows) and a fitness summary to the console.
+- Simulates a 24-hour scenario with 10-minute timesteps (default `T = 144`).
+- Predicts demand with a causal moving average.
+- Runs PSO to compute resource allocations per timestep.
+- Saves three PNG plots to the repository root: `allocation_plot.png`, `fitness_convergence.png`, and `supply_vs_demand.png`.
+- Prints a sample allocation table (first 10 intervals) and a fitness summary to the console.
 
 ## Configuration / Tuning
 
-Configuration variables and PSO hyperparameters are at the top of `renewable_energy.py` and can be adjusted:
+Top-level configuration variables (in `renewable_energy.py`) you can edit:
 
-- `T`, `dt_minutes` — horizon length and timestep resolution.
+- `T` — number of timesteps (default 144 for 24h @ 10-min intervals).
 - `BASE_DEMAND`, `CAPACITY_NOMINAL`, `SOLAR_NOMINAL`, `WIND_NOMINAL`, `HYDRO_NOMINAL` — nominal sizes.
 - `N_PARTICLES`, `MAX_ITERS`, `W_INERTIA`, `C1`, `C2` — PSO hyperparameters.
-- `MA_WINDOW` — demand predictor window (in timesteps).
-- `SWITCH_THRESHOLD`, `K_SIGMA`, `TOLERANCE` — penalties and safety factors.
+- `MA_WINDOW` — moving-average window for demand prediction.
+- `SWITCH_THRESHOLD`, `K_SIGMA`, `TOLERANCE` — switching penalty threshold, safety sigma multiplier, and tolerance band.
 
-For faster runs during experimentation, lower `MAX_ITERS` (e.g. 40) and `N_PARTICLES` (e.g. 20).
+For faster experimentation reduce `MAX_ITERS` (e.g. 40) and `N_PARTICLES` (e.g. 20).
 
 ## Programmatic Use
 
-The `main()` function returns a dictionary with the following keys which you can use if importing the script:
-
-- `df` — full DataFrame of allocations and demand values.
-- `df_first10` — sample of first 10 rows.
-- `best_alloc` — final allocation array shaped `(T, 3)` (solar, wind, hydro).
-- `history_best` — list of best fitness values per PSO iteration.
-- `fitness_summary` — dictionary with final metrics and runtime.
-
-Example import usage:
-
-```python
-from renewable_energy import main
-results = main()
-print(results['fitness_summary'])
-```
+`renewable_energy.py` is primarily a script: running it prints summaries and saves plots. The `main()` function
+prints outputs and currently does not return the results dictionary. If you prefer programmatic access, I can
+refactor `main()` to return the `results` dict (allocations, DataFrame, metrics) for use in other code.
 
 ## Outputs and Interpretation
 
-- The plotted stacked area shows how much each resource is allocated over time.
-- The fitness convergence plot helps debug PSO progress; lower is better.
-- The `stability_pct_within_5pct` metric in the fitness summary reports the percentage
-  of timesteps where supply is within ±5% of predicted demand.
+- `allocation_plot.png`: stacked area of resource allocations over time.
+- `fitness_convergence.png`: best fitness value per PSO iteration (lower is better).
+- `supply_vs_demand.png`: predicted demand vs total supply (first 8 hours by default).
+- Console summary: includes `stability_pct_within_5pct` (percentage of timesteps within ±5% of predicted demand),
+  average absolute imbalance, total switching, final fitness and runtime.
 
-## Limitations and Notes
+## Limitations
 
-- This is a research/prototyping script, not production-ready grid control code.
-- The uncertainty treatment is approximate (heuristic scaling of per-source stds).
-- PSO hyperparameters and penalty weights are heuristic and may require retuning for different scenarios.
-- No explicit licensing is included in the repo — add a license file if needed.
+- Research/prototype code only — not production-grade control software.
+- Uncertainty treatment and penalty weights are heuristic and may require retuning.
+- No license file is included — add one if you plan to publish.
 
 ## Suggested Experiments
 
-- Vary `MAX_ITERS` and `N_PARTICLES` to study convergence/runtime tradeoffs.
-- Replace the demand predictor with an ML model and compare metrics.
-- Add a conventional generator (dispatchable thermal) and cost-based objective.
+- Vary PSO hyperparameters to study convergence and runtime trade-offs.
+- Replace the moving-average predictor with a learned model for comparison.
+- Add a dispatchable thermal resource and include cost in the objective.
 
-## Contact / Next Steps
+## Next Steps (I can help)
 
-If you'd like, I can:
-
-- Add a CLI to configure hyperparameters without editing the script.
-- Create unit tests for the fitness function and finalization logic.
-- Add a minimal `requirements.txt` or `pyproject.toml` (if you prefer).
+- Add a CLI to set hyperparameters without editing the file.
+- Refactor `main()` to return a results dict for programmatic use.
+- Add unit tests for the fitness function and finalization logic.
+- Add or update `requirements.txt` or add `pyproject.toml`.
 
 ---
 
-Generated from `renewable_energy.py`.
+Last updated: 2025-11-15
+
+Generated from the current `renewable_energy.py` implementation.
 
