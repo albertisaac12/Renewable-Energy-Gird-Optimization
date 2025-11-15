@@ -1,108 +1,122 @@
 
 # Renewable Energy Allocation (PSO-based)
 
-This repository contains a simulation and optimizer that allocates renewable generation (solar, wind, hydro)
-to meet predicted electricity demand over a 24-hour horizon (10-minute steps). A Particle Swarm Optimization
-(PSO) algorithm is used to produce per-timestep allocations while penalizing imbalance, excessive switching,
-uncertainty-driven reserve shortfalls, and capacity violations.
+This repository contains code and tools for simulating a small renewable-heavy grid and optimizing per-timestep
+dispatch of solar, wind, and hydro resources using Particle Swarm Optimization (PSO). It includes two main
+workflows:
 
-## Key Features
+- An analysis/benchmark script (`renewable_energy.py`) that simulates a 24-hour scenario, runs a PSO optimizer,
+    saves summary plots and prints performance metrics.
+- A small demo web application under the `smart_city_pso/` package providing a lightweight real-time simulation
+    and an ultra-fast single-step optimizer exposed via a Flask API.
 
-- Simulates time-varying demand, cloud events affecting solar, stochastic wind events, and hydro flow.
-- Causal moving-average demand predictor for short-term forecasts.
-- PSO-based optimizer with tunable hyperparameters.
-- Heuristic post-processing to use hydro flexibility to reduce shortfalls.
-- Saves summary plots as PNG files and prints a small allocation table and fitness summary.
+**Primary goals:** experiment with per-timestep allocation strategies, study trade-offs between tracking
+predicted demand, switching costs, uncertainty reserves, and capacity constraints.
 
-## Files
+## Repository layout
 
-- `renewable_energy.py` — Main script: environment simulation, predictor, fitness function, PSO, plotting/saving.
-- `ReadMe.md` — This file.
+- `renewable_energy.py` — standalone analysis script: environment simulation, moving-average demand predictor,
+    full-horizon PSO optimizer, postprocessing, and PNG plots (`allocation_plot.png`, `fitness_convergence.png`,
+    `supply_vs_demand.png`).
+- `smart_city_pso/` — a small package with:
+    - `simulation.py` — `SmartCitySimulation` class generating 144-step snapshot series used by the optimizer.
+    - `pso_optimizer.py` — `PSOGridOptimizer` class that performs full-horizon optimization over a snapshot series.
+    - `app.py` — Flask application exposing endpoints for live snapshots and an ultra-fast realtime optimizer.
+- `requirements.txt` — project dependencies (numpy, pandas, matplotlib, scipy, statsmodels, flask).
+- `ReadMe.md` — this file.
 
 ## Requirements
 
-- Python 3.8+ (developed/tested with Python 3.10)
-- Required packages: `numpy`, `pandas`, `matplotlib`
+- Python 3.8+ (developed/tested with Python 3.10).
+- Install dependencies (recommended using a virtual environment):
 
-If you want to use the provided virtual environment (`reg` folder) in PowerShell:
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
+
+If you prefer to use the included virtual environment under `reg/`, activate it in PowerShell:
 
 ```powershell
 .\reg\Scripts\Activate.ps1
 pip install -r requirements.txt
 ```
 
-Or create/activate your own venv and install dependencies:
+## Quick Start
 
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install numpy pandas matplotlib
-```
-
-## Quick Run
-
-From the repository root run:
+1. Analysis script (offline/full-horizon PSO)
 
 ```powershell
 python renewable_energy.py
 ```
 
-What the script does:
+This runs a single 24-hour simulation, runs the PSO optimizer (configurable via constants at the top of the
+script), saves three PNG plots to the repository root, and prints a sample allocation table and fitness summary.
 
-- Simulates a 24-hour scenario with 10-minute timesteps (default `T = 144`).
-- Predicts demand with a causal moving average.
-- Runs PSO to compute resource allocations per timestep.
-- Saves three PNG plots to the repository root: `allocation_plot.png`, `fitness_convergence.png`, and `supply_vs_demand.png`.
-- Prints a sample allocation table (first 10 intervals) and a fitness summary to the console.
+1. Demo web app (ultra-fast single-step optimization)
 
-## Configuration / Tuning
+```powershell
+python -m smart_city_pso.app
+```
 
-Top-level configuration variables (in `renewable_energy.py`) you can edit:
+Then open `http://127.0.0.1:5000/` in your browser. The Flask app provides these JSON endpoints useful for
+automation or UI integration:
 
-- `T` — number of timesteps (default 144 for 24h @ 10-min intervals).
-- `BASE_DEMAND`, `CAPACITY_NOMINAL`, `SOLAR_NOMINAL`, `WIND_NOMINAL`, `HYDRO_NOMINAL` — nominal sizes.
-- `N_PARTICLES`, `MAX_ITERS`, `W_INERTIA`, `C1`, `C2` — PSO hyperparameters.
+- `GET /api/state` — advances the simulation by one step and returns a snapshot with `demand`, `solar_mean`,
+    `wind_mean`, `hydro_mean`, and other fields.
+- `POST /api/optimize_now` — runs the ultra-fast realtime optimizer for a single snapshot (accepts an optional
+    JSON body with a `snapshot` to optimize without advancing the live sim). Returns `{ alloc: [s,w,h], fitness }`.
+- `GET /api/realtime_alloc` — returns the latest optimization result cached on the server.
+- `POST /api/restart` — resets the simulation time to 0.
+
+Example: request a single-step optimization using PowerShell:
+
+```powershell
+$resp = Invoke-RestMethod -Method POST -Uri http://127.0.0.1:5000/api/optimize_now
+$resp.alloc
+$resp.fitness
+```
+
+## Configuration & Important Parameters
+
+Most tuning parameters are defined near the top of each module. Key parameters you will likely edit:
+
+- `T`, `dt_minutes` — horizon length and timestep resolution (in `renewable_energy.py` / `PSOGridOptimizer`).
+- `BASE_DEMAND`, `CAPACITY_NOMINAL`, `SOLAR_NOMINAL`, `WIND_NOMINAL`, `HYDRO_NOMINAL` — resource sizes.
+- PSO hyperparameters: `N_PARTICLES` / `n_particles`, `MAX_ITERS` / `max_iters`, inertia and cognitive/social
+    coefficients (`W_INERTIA`, `C1`, `C2`, or `w`, `c1`, `c2` in optimizer classes).
 - `MA_WINDOW` — moving-average window for demand prediction.
-- `SWITCH_THRESHOLD`, `K_SIGMA`, `TOLERANCE` — switching penalty threshold, safety sigma multiplier, and tolerance band.
+- `SWITCH_THRESHOLD`, `K_SIGMA`, `TOLERANCE` — switching penalty threshold, safety sigma multiplier for
+    reserve calculation, and acceptable supply/demand tolerance band.
 
-For faster experimentation reduce `MAX_ITERS` (e.g. 40) and `N_PARTICLES` (e.g. 20).
+Tuning tip: for faster trials reduce particle count and iterations (e.g., `N_PARTICLES=20`, `MAX_ITERS=40`).
+
+## Outputs
+
+- `allocation_plot.png` — stacked area of solar/wind/hydro allocations over time (saved by `renewable_energy.py`).
+- `fitness_convergence.png` — best fitness value per PSO iteration (saved by `renewable_energy.py`).
+- `supply_vs_demand.png` — predicted demand vs total supply for the first 8 hours (saved by `renewable_energy.py`).
+- Console output: sample allocation table (first 10 rows) and a fitness summary including `stability_pct_within_5pct`.
 
 ## Programmatic Use
 
-`renewable_energy.py` is primarily a script: running it prints summaries and saves plots. The `main()` function
-prints outputs and currently does not return the results dictionary. If you prefer programmatic access, I can
-refactor `main()` to return the `results` dict (allocations, DataFrame, metrics) for use in other code.
+- `PSOGridOptimizer.optimize()` returns a dict with `alloc`, `fitness`, `history`, and `demand_pred` and is the
+    recommended programmatic entry point for full-horizon optimization.
+- The Flask `ultra_fast_realtime_opt()` in `app.py` implements a greedy + micro-PSO two-stage optimizer intended
+    for low-latency single-step allocation; it returns `{ alloc: [s,w,h], fitness }`.
 
-## Outputs and Interpretation
+## Development notes & Suggested Improvements
 
-- `allocation_plot.png`: stacked area of resource allocations over time.
-- `fitness_convergence.png`: best fitness value per PSO iteration (lower is better).
-- `supply_vs_demand.png`: predicted demand vs total supply (first 8 hours by default).
-- Console summary: includes `stability_pct_within_5pct` (percentage of timesteps within ±5% of predicted demand),
-  average absolute imbalance, total switching, final fitness and runtime.
+- The uncertainty model is heuristic (per-source std scaling). Consider replacing with statistical models or
+    bootstrapped forecasts for more principled reserve estimates.
+- Add a CLI or config file (e.g., `--particles`, `--iters`, `--seed`) instead of editing source constants.
+- Add unit tests covering: `fitness` calculation, `finalize_alloc` behavior, and `ultra_fast_realtime_opt` edge cases.
+- Consider packaging the `smart_city_pso` module and exposing the optimizer through a lightweight CLI.
 
-## Limitations
+## Testing & Reproducibility
 
-- Research/prototype code only — not production-grade control software.
-- Uncertainty treatment and penalty weights are heuristic and may require retuning.
-- No license file is included — add one if you plan to publish.
-
-## Suggested Experiments
-
-- Vary PSO hyperparameters to study convergence and runtime trade-offs.
-- Replace the moving-average predictor with a learned model for comparison.
-- Add a dispatchable thermal resource and include cost in the objective.
-
-## Next Steps (I can help)
-
-- Add a CLI to set hyperparameters without editing the file.
-- Refactor `main()` to return a results dict for programmatic use.
-- Add unit tests for the fitness function and finalization logic.
-- Add or update `requirements.txt` or add `pyproject.toml`.
-
----
-
-Last updated: 2025-11-15
-
-Generated from the current `renewable_energy.py` implementation.
+- The code uses seeded RNGs for reproducibility; set seeds at the top of modules when running experiments.
+- To reproduce specific scenarios, call `SmartCitySimulation.snapshot_series()` and pass the series into
+    `PSOGridOptimizer(series, ...)` so you can run deterministic comparisons.
 
