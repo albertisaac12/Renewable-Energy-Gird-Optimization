@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Smart Grid - Realtime Optimized Dispatch</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<header>
+    <h1>Smart City Renewable Grid - Realtime Optimized Dispatch</h1>
+    <p class="subtitle">When 'Use Optimized Dispatch' is enabled the system runs an ultra-fast optimizer every 0.3 s and applies allocations immediately.</p>
+</header>
+
+<div id="controlsRow">
+    <div class="controlGroup">
+        <label>
+            <input type="checkbox" id="applyOptimized" disabled>
+            Use Optimized Dispatch
+        </label>
+    </div>
+
+    <div class="controlGroup">
+        <button id="pauseLive">Pause Live</button>
+        <button id="resumeLive">Resume Live</button>
+    </div>
+
+    <div class="controlGroup">
+        <button id="restartSim">Restart Simulation</button>
+    </div>
+</div>
+
+<div id="capacityRow">
+    <div class="capBox">
+        <div class="capTitle">Renewable Capacity Limits</div>
+        <p>Solar max: <strong>40 MW</strong></p>
+        <p>Wind max: <strong>35 MW</strong></p>
+        <p>Hydro max: <strong>25 MW</strong></p>
+        <p class="capNote">Total renewable capacity: <strong>100 MW</strong></p>
+    </div>
+</div>
+
+<main id="mainGrid">
+    <section class="sourceSection">
+        <h2 class="sourceTitle">Solar</h2>
+        <div class="threeCol">
+            <div class="colBox liveBox">
+                <div class="colTitle">LIVE</div>
+                <div class="colValue" id="solarLive">- MW</div>
+                <div class="colNote">Current availability</div>
+            </div>
+            <div class="colBox appliedBox">
+                <div class="colTitle">APPLIED</div>
+                <div class="colValue" id="solarApplied">- MW</div>
+                <div class="colNote" id="solarMode">Mode: Live</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="sourceSection">
+        <h2 class="sourceTitle">Wind</h2>
+        <div class="threeCol">
+            <div class="colBox liveBox">
+                <div class="colTitle">LIVE</div>
+                <div class="colValue" id="windLive">- MW</div>
+                <div class="colNote">Current availability</div>
+            </div>
+            <div class="colBox appliedBox">
+                <div class="colTitle">APPLIED</div>
+                <div class="colValue" id="windApplied">- MW</div>
+                <div class="colNote" id="windMode">Mode: Live</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="sourceSection">
+        <h2 class="sourceTitle">Hydro</h2>
+        <div class="threeCol">
+            <div class="colBox liveBox">
+                <div class="colTitle">LIVE</div>
+                <div class="colValue" id="hydroLive">- MW</div>
+                <div class="colNote">Current availability</div>
+            </div>
+            <div class="colBox appliedBox">
+                <div class="colTitle">APPLIED</div>
+                <div class="colValue" id="hydroApplied">- MW</div>
+                <div class="colNote" id="hydroMode">Mode: Live</div>
+            </div>
+        </div>
+    </section>
+</main>
+
+<aside id="rightPanel">
+    <div class="metrics">
+        <h3>Grid Metrics</h3>
+        <p id="timeIdx">Time: -</p>
+        <p id="demand">Demand: - MW</p>
+        <p id="supply">Applied Supply: - MW</p>
+        <p id="gridStatus">Grid Status: -</p>
+        <p id="realtimeFitness">Realtime fitness: -</p>
+    </div>
+
+    <div id="logPanel">
+        <h3>Event Log</h3>
+        <pre id="logBox"></pre>
+    </div>
+</aside>
+
+<script src="/static/script.js"></script>
+</body>
+</html>
